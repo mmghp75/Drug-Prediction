@@ -1,0 +1,381 @@
+error=TRUE
+#install.packages("klaR")
+#install.packages("tidyverse")         # Required for analysis, visualization
+#install.packages("plotly")            # Required for interactive plotting of graphs
+#install.packages("ggsci")             # Themes package for the plots
+#install.packages("ggplot2")           # rRequired for ggplots
+#install.packages("caret")             # Includes various ML methods
+#install.packages("kernlab")           # SVM
+#install.packages("e1071")             # KNN
+#install.packages("randomForest")
+library(tidyverse)
+library(plotly)
+#library(ggsci)
+library(ggplot2)
+library(caret)
+library(kernlab)
+library(e1071)
+library(randomForest)
+library(klaR)
+Year97 <- read.csv(**Load the year 97 data**)
+Year98 <- read.csv(**Load the year 98 data**)
+Year99 <- read.csv(**Load the year 99 data**)
+Total_Year <- rbind(Year97,Year98,Year99)
+###Find the top 20 most frequent items in "Service.Int.Code" and only select those records
+library(dplyr)
+Total_Year <- Total_Year[Total_Year$Service.Int.Code %in% c(65165,53607,54922,65031,52363,42870,52384,54345,46789,65004,56707,51857,55200,53788,56339,51844,46009,55275,56543,48179,65019,51847,47138,45785,51841,56200,57379,56354,56221,56178,43079,51921,64620,46813,47310,46524,65394),]
+### The Amount of Medicine with ID 65165 should be double
+for (i in 1:nrow(Total_Year)){
+  if(Total_Year[i,"Service.Int.Code"]==65165){
+    Total_Year[i,"Num"] <- Total_Year[i,"Num"]*2
+  }
+}
+### Drop the rows that their date is NA
+#Total_Year <- Total_Year[!is.na(Date)]
+Null_Dates_Indeces<- which(is.na(Total_Year$Date), arr.ind=TRUE)
+Total_Year <- Total_Year[-c(Null_Dates_Indeces), ]
+rm(Year97,Year98,Year99,Top_N,Top_N_Unique,Top_N_Unique_Sorted,Null_Dates_Indeces)
+### Sum the Num of duplicated rows. It means we sum a medicine that were taken by the same patient. 
+Total_Yearr <- Total_Year
+
+### convert negative values into positive
+Total_Yearr$Num <-abs(Total_Yearr$Num)
+### generate sequential Id for months
+r <- rle(as.numeric(unlist(Total_Yearr$month)))
+r$values <- seq_along(r$lengths)
+Total_Yearr<-cbind(Total_Yearr,Mon=inverse.rle(r))
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(65165,53607,54922,65031,52363)] <- "A"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(42870,52384,54345,46789,65004,56707)] <- "B"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(51857,55200,53788,56339)] <- "C"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(51844,46009,55275)] <- "D"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(56543,48179)] <- "E"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(65019,51847)] <- "F"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(47138)] <- "G"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(45785,51841)] <- "H"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(56200)] <- "I"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(57379)] <- "J"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(56354)] <- "K"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(56221)] <- "L"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(56178)] <- "M"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(43079)] <- "N"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(51921)] <- "O"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(64620)] <- "P"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(46813)] <- "Q"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(47310)] <- "R"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(46524)] <- "S"
+Total_Yearr$Service.Int.Code[Total_Yearr$Service.Int.Code %in% c(65394)] <- "T"
+#Total_Yearr$Service.Int.Code<- factor(Total_Yearr$Service.Int.Code, levels = c(56200,57379,56354,56221,56178,43079,51921,64620,46813,47310,46524,65394),labels = c("I","J","K","L","M","N","O","P","Q","R","S","T"))
+library(dplyr)
+Total_Yearr <- Total_Yearr |> 
+  group_by(across(-Num)) |>
+  summarise(Num = sum(Num)) |>
+  ungroup()
+Total_Yearr$NumLabels <- cut(Total_Yearr$Num, c(0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,310,320,330,340,350,360,370,380,390,400,410,420,430,440,450,460,470,480,490,500,1069), labels=c("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","AA","AB","AC","AD","AE","AF","AG","AH","AI","AJ","AK","AL","AM","AN","AO","AP","AQ","AR","AS","AT","AU","AV","AW","AX","AY"), include.lowest=T)### Drop Unnecessary columns
+Total_Yearr <- Total_Yearr[,!(names(Total_Yearr) %in% c("Date","month","Num"))]
+### Reorder columns to have the Servicce.Int.Code as the last column
+Total_Yearr <-Total_Yearr[,c("Adm.Code","Sex","Old","BloodGroup","DiagCode","DiseaseTag","Doctor.Code","Mon","Service.Int.Code","NumLabels")]
+### Convert "NULL" BloddGroup into 20
+Total_Yearr$BloodGroup[which(Total_Yearr$BloodGroup=="NULL")] <- 20
+Total_Yearr$BloodGroup <- as.numeric(Total_Yearr$BloodGroup)
+Total_Yearr[,1:8] <- sapply(Total_Yearr[,1:8],as.numeric)
+Total_Yearr <- Total_Yearr[,-1]  # Drop Admission Code Field Since We Had Duplication in it (we can not train).
+###Month_Tests
+Month_Year <- Total_Yearr[which(Total_Yearr$Mon==12),]
+Month_2Years <- Total_Yearr[which(Total_Yearr$Mon==24),]
+Month_3Years <- Total_Yearr[which(Total_Yearr$Mon==36),]
+###Season_Tests
+Season_Year <- Total_Yearr[which(Total_Yearr$Mon>=10&Total_Yearr$Mon<=12),]
+Season_2Years <- Total_Yearr[which(Total_Yearr$Mon>=22&Total_Yearr$Mon<=24),]
+Season_3Years <- Total_Yearr[which(Total_Yearr$Mon>=34&Total_Yearr$Mon<=36),]
+library(caret)
+### Drug - One Month In One Year
+set.seed(222)
+inTrain = createDataPartition(y = Month_Year$Service.Int.Code, p = .70, list = FALSE)
+training_month_year <- Month_Year[inTrain,]
+testing_month_year <- Month_Year[-inTrain,]
+Training_Month_Year <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=11),],training_month_year)
+testing_month_year <- testing_month_year[,-9]
+Training_Month_Year<- Training_Month_Year[,-9]
+### Amount - One Month In One Year
+set.seed(222)
+inTrainNum = createDataPartition(y = Month_Year$NumLabels, p = .70, list = FALSE)
+training_month_Year_Num <- Month_Year[inTrainNum,]
+testing_month_year_Num <- Month_Year[-inTrainNum,]
+Training_Month_Year_Num <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=11),],training_month_Year_Num)
+testing_month_year_Num <- testing_month_year_Num[,-8]
+Training_Month_Year_Num <- Training_Month_Year_Num[,-8] 
+### Drug - One Month In Two Years
+set.seed(222)
+inTrain1 = createDataPartition(y = Month_2Years$Service.Int.Code, p = .70, list = FALSE)
+training_month_2years = Month_2Years[inTrain1,]
+testing_month_2years = Month_2Years[-inTrain1,]
+Training_Month_2years <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=23),],training_month_2years)
+testing_month_2years <- testing_month_2years[,-9]
+Training_Month_2years <- Training_Month_2years[,-9]
+### Amount - One Month In Two Years
+set.seed(222)
+inTrainNum1 = createDataPartition(y = Month_2Years$NumLabels, p = .70, list = FALSE)
+training_month_year_Num1 = Month_2Years[inTrainNum1,]
+testing_month_year_Num1 = Month_2Years[-inTrainNum1,]
+Training_Month_Year_Num1 <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=11),],training_month_year_Num1)
+testing_month_year_Num1 <- testing_month_year_Num1[,-8]
+Training_Month_Year_Num1 <- Training_Month_Year_Num1[,-8]
+### Drug - One Month In Three Years
+set.seed(222)
+inTrain2 = createDataPartition(y = Month_3Years$Service.Int.Code, p = .70, list = FALSE)
+training_month_3years = Month_3Years[inTrain2,]
+testing_month_3years = Month_3Years[-inTrain2,]
+Training_Month_3years <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=35),],training_month_3years)
+testing_month_3years <- testing_month_3years[,-9]
+Training_Month_3years <- Training_Month_3years[,-9]
+### Amount - One Month In Three Years
+set.seed(222)
+inTrain22 = createDataPartition(y = Month_3Years$NumLabels, p = .70, list = FALSE)
+training_month_years3 = Month_3Years[inTrain22,]
+testing_month_years3 = Month_3Years[-inTrain22,]
+Training_Month_years3 <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=35),],training_month_years3)
+testing_month_years3 <- testing_month_years3[,-8]
+Training_Month_years3 <- Training_Month_years3[,-8] 
+### SEASONS ###
+###  Drug - One Season In One Year
+set.seed(222)
+inTrain3 = createDataPartition(y = Season_Year$Service.Int.Code, p = .70, list = FALSE)
+training_Season_Year = Season_Year[inTrain3,]
+testing_Season_Year = Season_Year[-inTrain3,]
+Training_Season_Year <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=9),],training_Season_Year)
+testing_Season_Year <- testing_Season_Year[,-9]
+Training_Season_Year  <- Training_Season_Year[,-9]
+###  Amount - One Season In One Year
+set.seed(222)
+inTrain33 = createDataPartition(y = Season_Year$NumLabels, p = .70, list = FALSE)
+training_Season_Year1 = Season_Year[inTrain33,]
+testing_Season_Year1 = Season_Year[-inTrain33,]
+Training_Season_Year1 <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=9),],training_Season_Year1)
+testing_Season_Year1 <- testing_Season_Year1[,-8]
+Training_Season_Year1  <- Training_Season_Year1[,-8]
+### Drug - One Season In Two Years
+set.seed(222)
+inTrain4 = createDataPartition(y = Season_2Years$Service.Int.Code, p = .70, list = FALSE)
+training_Season_2Years = Season_2Years[inTrain4,]
+testing_Season_2Years = Season_2Years[-inTrain4,]
+Training_Season_2Years <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=21),],training_Season_2Years)
+testing_Season_2Years <- testing_Season_2Years[,-9]
+Training_Season_2Years  <- Training_Season_2Years[,-9]
+### Amount - One Season In Two Years
+set.seed(222)
+inTrain44 = createDataPartition(y = Season_2Years$NumLabels, p = .70, list = FALSE)
+training_Season_Years2 = Season_2Years[inTrain44,]
+testing_Season_Years2 = Season_2Years[-inTrain44,]
+Training_Season_Years2 <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=21),],training_Season_Years2)
+testing_Season_Years2 <- testing_Season_Years2[,-8]
+Training_Season_Years2<- Training_Season_Years2[,-8]
+### Drug - One Season In Three Years
+set.seed(222)
+inTrain5 = createDataPartition(y = Season_3Years$Service.Int.Code, p = .70, list = FALSE)
+training_Season_3Years = Season_3Years[inTrain5,]
+testing_Season_3Years = Season_3Years[-inTrain5,]
+Training_Season_3Years <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=33),],training_Season_3Years)
+testing_Season_3Years <- testing_Season_3Years[,-9]
+Training_Season_3Years <-Training_Season_3Years[,-9]
+### Amount - One Season In Three Years
+set.seed(222)
+inTrain55 = createDataPartition(y = Season_3Years$NumLabels, p = .70, list = FALSE)
+training_Season_Years3 = Season_3Years[inTrain55,]
+testing_Season_Years3 = Season_3Years[-inTrain55,]
+Training_Season_Years3 <- rbind(Total_Yearr[which(Total_Yearr$Mon>=1&Total_Yearr$Mon<=33),],training_Season_Years3)
+testing_Season_Years3 <- testing_Season_Years3[,-8]
+Training_Season_Years3<- Training_Season_Years3[,-8]
+
+### Drop Unused Levels
+
+Training_Month_Year<-droplevels(Training_Month_Year)
+Training_Month_Year_Num<-droplevels(Training_Month_Year_Num)
+Training_Month_2years<-droplevels(Training_Month_2years)
+Training_Month_Year_Num1<-droplevels(Training_Month_Year_Num1)
+Training_Month_3years<-droplevels(Training_Month_3years)
+Training_Month_years3<-droplevels(Training_Month_years3)
+Training_Season_Year<-droplevels(Training_Season_Year)
+Training_Season_Year1<-droplevels(Training_Season_Year1)
+Training_Season_2Years<-droplevels(Training_Season_2Years)
+Training_Season_Years2<-droplevels(Training_Season_Years2)
+Training_Season_3Years<-droplevels(Training_Season_3Years)
+Training_Season_Years3<-droplevels(Training_Season_Years3)
+###  Prediction Part###
+set.seed(222)
+train_control <- caret::trainControl(method = "cv", number = 5) 
+### Drug Prediction Model - Month
+
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time1Drug <- system.time(RF_1month_1Year <- train(Service.Int.Code~., data = Training_Month_Year, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time1Drug <- system.time(NN_1month_1Year <- train(Service.Int.Code~., data = Training_Month_Year, tunelength=5, trControl=train_control, "nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time2Drug <- system.time(RF_1month_2Year <- train(Service.Int.Code~., data = Training_Month_2years, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time2Drug <- system.time(NN_1month_2Year <- train(Service.Int.Code~., data = Training_Month_2years, tunelength=5, trControl=train_control, "nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time3Drug <- system.time(RF_1month_3Year <- train(Service.Int.Code~., data = Training_Month_3years, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time3Drug <- system.time(NN_1month_3Year <- train(Service.Int.Code~., data = Training_Month_3years, tunelength=5, trControl=train_control, "nnet",maxit=5))[3]
+
+###  Drug Amount Prediction Model - Month
+
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_1Num <- system.time(RF_1month_1Year_Amount <- train(NumLabels~., data = Training_Month_Year_Num, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_1Num <- system.time(NN_1month_1Year_Amount <- train(NumLabels~., data = Training_Month_Year_Num, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_2Num <- system.time(RF_1month_2Year_Amount <- train(NumLabels~., data = Training_Month_Year_Num1, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_2Num <- system.time(NN_1month_2Year_Amount <- train(NumLabels~., data = Training_Month_Year_Num1, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##  
+gc()                                               
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_3Num <- system.time(RF_1month_3Year_Amount <- train(NumLabels~., data = Training_Month_years3, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_3Num <- system.time(NN_1month_3Year_Amount <- train(NumLabels~., data = Training_Month_years3, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+
+###### Drug Prediction Model - Season
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time1_S_Drug <- system.time(RF_1season_1Year <- train(Service.Int.Code~., data = Training_Season_Year, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time1_S_Drug <- system.time(NN_1season_1Year <- train(Service.Int.Code~., data = Training_Season_Year, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time2_S_Drug <- system.time(RF_1season_2Year <- train(Service.Int.Code~., data = Training_Season_2Years, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time2_S_Drug <- system.time(NN_1season_2Year <- train(Service.Int.Code~., data = Training_Season_2Years, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time3_S_Drug <- system.time(RF_1season_3Year <- train(Service.Int.Code~., data = Training_Season_3Years, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time3_S_Drug <- system.time(NN_1season_3Year <- train(Service.Int.Code~., data = Training_Season_3Years, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_S_Num <- system.time(RF_1season_1Year_Amount <- train(NumLabels~., data = Training_Season_Year1, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_S_Num <- system.time(NN_1season_1Year_Amount <- train(NumLabels~., data = Training_Season_Year1, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_S_2Num <- system.time(RF_1season_2Year_Amount <- train(NumLabels~., data = Training_Season_Years2, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_S_2Num <- system.time(NN_1season_2Year_Amount <- train(NumLabels~., data = Training_Season_Years2, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+##
+gc()
+memory.limit(9999999999)
+set.seed(222)
+RF_Time_S_3Num <- system.time(RF_1season_3Year_Amount <- train(NumLabels~., data = Training_Season_Years3, tunelength=5, trControl=train_control, method="rf"))[3]  
+NN_Time_S_3Num <- system.time(NN_1season_3Year_Amount <- train(NumLabels~., data = Training_Season_Years3, tunelength=5, trControl=train_control, method="nnet",maxit=5))[3]
+
+
+##### Find Models complexity
+TIMES <- c(RF_Time1Drug,NN_Time1Drug,RF_Time2Drug,NN_Time2Drug,RF_Time3Drug,NN_Time3Drug,RF_Time_1Num,NN_Time_1Num,RF_Time_2Num,NN_Time_2Num,RF_Time_3Num,NN_Time_3Num,RF_Time1_S_Drug,NN_Time1_S_Drug,RF_Time2_S_Drug,NN_Time2_S_Drug,RF_Time3_S_Drug,NN_Time3_S_Drug,RF_Time_S_Num,NN_Time_S_Num,RF_Time_S_2Num,NN_Time_S_2Num,RF_Time_S_3Num,NN_Time_S_3Num)                                                                   
+Models_Times <- matrix(TIMES,nrow=2,ncol=12)
+colnames(Models_Times) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Models_Times) <- c("RF","NN") 
+##### Find Models Accuracy
+Accuracy <- c(max(RF_1month_1Year$results["Accuracy"],na.rm = TRUE),max(max(NN_1month_1Year$results["Accuracy"],na.rm = TRUE),max(RF_1month_2Year$results["Accuracy"],na.rm = TRUE),max(NN_1month_2Year$results["Accuracy"],na.rm = TRUE),max(RF_1month_3Year$results["Accuracy"],na.rm = TRUE),max(NN_1month_3Year$results["Accuracy"],na.rm = TRUE),max(RF_1month_1Year_Amount$results["Accuracy"],na.rm = TRUE),max(NN_1month_1Year_Amount$results["Accuracy"],na.rm = TRUE),max(RF_1month_2Year_Amount$results["Accuracy"],na.rm = TRUE),max(NN_1month_2Year_Amount$results["Accuracy"],na.rm = TRUE),max(RF_1month_3Year_Amount$results["Accuracy"],na.rm = TRUE),max(NN_1month_3Year_Amount$results["Accuracy"],na.rm = TRUE),max(RF_1season_1Year$results["Accuracy"],na.rm = TRUE),max(NN_1season_1Year$results["Accuracy"],na.rm = TRUE),max(RF_1season_2Year$results["Accuracy"],na.rm = TRUE),max(NN_1season_2Year$results["Accuracy"],na.rm = TRUE),max(RF_1season_3Year$results["Accuracy"],na.rm = TRUE),max(NN_1season_3Year$results["Accuracy"],na.rm = TRUE),max(RF_1season_1Year_Amount$results["Accuracy"],na.rm = TRUE),NA,max(NN_1season_1Year_Amount$results["Accuracy"],na.rm = TRUE),max(RF_1season_2Year_Amount$results["Accuracy"],na.rm = TRUE),max(NN_1season_2Year_Amount$results["Accuracy"],na.rm = TRUE),max(RF_1season_3Year_Amount$results["Accuracy"],na.rm = TRUE),max(NN_1season_3Year_Amount$results["Accuracy"],na.rm = TRUE))                                                                       
+Models_Accuracy <- matrix(Accuracy,nrow=2,ncol=12)
+colnames(Models_Accuracy) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Models_Accuracy) <- c("RF","NN") 
+##### Find Models Kappa 
+#Kappa Values. Generally, a kappa of less than 0.4 is considered poor (a Kappa of 0 means there is no difference between the observers and chance alone). Kappa values of 0.4 to 0.75 are considered moderate to good and a kappa of >0.75 represents excellent agreement.
+KappaFinder <- function(X){
+  AccMaxIndex <- which.max(as.numeric(X$results[["Accuracy"]]))
+  KaP <- X$results[["Kappa"]][AccMaxIndex]
+return(KaP)
+}
+Kappa <- c(KappaFinder(RF_1month_1Year),KappaFinder(NN_1month_1Year),KappaFinder(RF_1month_2Year),KappaFinder(NN_1month_2Year),KappaFinder(RF_1month_3Year),KappaFinder(NN_1month_3Year),KappaFinder(RF_1month_1Year_Amount),KappaFinder(NN_1month_1Year_Amount),KappaFinder(RF_1month_2Year_Amount),KappaFinder(NN_1month_2Year_Amount),KappaFinder(RF_1month_3Year_Amount),KappaFinder(NN_1month_3Year_Amount),KappaFinder(RF_1season_1Year),KappaFinder(NN_1season_1Year),KappaFinder(RF_1season_2Year),KappaFinder(NN_1season_2Year),KappaFinder(RF_1season_3Year),KappaFinder(NN_1season_3Year),KappaFinder(RF_1season_1Year_Amount),KappaFinder(NN_1season_1Year_Amount),KappaFinder(RF_1season_2Year_Amount),KappaFinder(NN_1season_2Year_Amount),KappaFinder(RF_1season_3Year_Amount),KappaFinder(NN_1season_3Year_Amount))                                                                       
+Models_Kappa <- matrix(Kappa,nrow=2,ncol=12)
+colnames(Models_Kappa) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Models_Kappa) <- c("RF","NN") 
+##############
+RF_pred_1M1Y_Drug <- predict(RF_1month_1Year,testing_month_year[,1:7])
+NN_pred_1M1Y_Drug <- predict(NN_1month_1Year,testing_month_year[,1:7])
+RF_pred_1M2Y_Drug <- predict(RF_1month_2Year,testing_month_2years[,1:7])
+NN_pred_1M2Y_Drug <- predict(NN_1month_2Year,testing_month_2years[,1:7])
+RF_pred_1M3Y_Drug <- predict(RF_1month_3Year,testing_month_3years[,1:7])
+NN_pred_1M3Y_Drug <- predict(NN_1month_3Year,testing_month_3years[,1:7])
+RF_pred_1M1Y_Amount <- predict(RF_1month_1Year_Amount,testing_month_year_Num[,1:7])
+NN_pred_1M1Y_Amount <- predict(NN_1month_1Year_Amount,testing_month_year_Num[,1:7])
+RF_pred_1M2Y_Amount <- predict(RF_1month_2Year_Amount,testing_month_year_Num1[,1:7])
+NN_pred_1M2Y_Amount <- predict(NN_1month_2Year_Amount,testing_month_year_Num1[,1:7])
+RF_pred_1M3Y_Amount <- predict(RF_1month_3Year_Amount,testing_month_years3[,1:7])
+NN_pred_1M3Y_Amount <- predict(NN_1month_3Year_Amount,testing_month_years3[,1:7])
+RF_pred_1S1Y_Drug <- predict(RF_1season_1Year,testing_Season_Year[,1:7])
+NN_pred_1S1Y_Drug <- predict(NN_1season_1Year,testing_Season_Year[,1:7])
+RF_pred_1S2Y_Drug <- predict(RF_1season_2Year,testing_Season_2Years[,1:7])
+NN_pred_1S2Y_Drug <- predict(NN_1season_2Year,testing_Season_2Years[,1:7])
+RF_pred_1S3Y_Drug <- predict(RF_1season_3Year,testing_Season_3Years[,1:7])
+NN_pred_1S3Y_Drug <- predict(NN_1season_3Year,testing_Season_3Years[,1:7])
+RF_pred_1S1Y_Amount <- predict(RF_1season_1Year_Amount,testing_Season_Year1[,1:7])
+NN_pred_1S1Y_Amount <- predict(NN_1season_1Year_Amount,testing_Season_Year1[,1:7])
+RF_pred_1S2Y_Amount <- predict(RF_1season_2Year_Amount,testing_Season_Years2[,1:7])
+NN_pred_1S2Y_Amount <- predict(NN_1season_2Year_Amount,testing_Season_Years2[,1:7])
+RF_pred_1S3Y_Amount <- predict(RF_1season_3Year_Amount,testing_Season_Years3[,1:7])
+NN_pred_1S3Y_Amount <- predict(NN_1season_3Year_Amount,testing_Season_Years3[,1:7])
+#####################
+CF_Builder <- function(X,Y){
+  u <- union(X,Y)
+  t <- table(factor(Y, u), factor(X, u))
+  return(confusionMatrix(t))
+}
+CM_RF_pred_1M1Y_Drug <- confusionMatrix(reference = as.factor(testing_month_year$Service.Int.Code), data = RF_pred_1M1Y_Drug, mode='everything')
+CM_NN_pred_1M1Y_Drug <- confusionMatrix(reference = as.factor(testing_month_year$Service.Int.Code), data = NN_pred_1M1Y_Drug, mode='everything')
+CM_RF_pred_1M2Y_Drug <- CF_Builder(testing_month_2years$Service.Int.Code, RF_pred_1M2Y_Drug)
+CM_NN_pred_1M2Y_Drug <- CF_Builder(testing_month_2years$Service.Int.Code, NN_pred_1M2Y_Drug)
+CM_RF_pred_1M3Y_Drug <- CF_Builder(testing_month_3years$Service.Int.Code,RF_pred_1M3Y_Drug)
+CM_NN_pred_1M3Y_Drug <- CF_Builder(testing_month_3years$Service.Int.Code,NN_pred_1M3Y_Drug)
+CM_RF_pred_1M1Y_Amount <- CF_Builder(testing_month_year_Num$NumLabels,RF_pred_1M1Y_Amount)
+CM_NN_pred_1M1Y_Amount <- CF_Builder(testing_month_year_Num$NumLabels,NN_pred_1M1Y_Amount)
+CM_RF_pred_1M2Y_Amount <- CF_Builder(testing_month_year_Num1$NumLabels,RF_pred_1M2Y_Amount)
+CM_NN_pred_1M2Y_Amount <- CF_Builder(testing_month_year_Num1$NumLabels,NN_pred_1M2Y_Amount)
+CM_RF_pred_1M3Y_Amount <- CF_Builder(testing_month_years3$NumLabels,RF_pred_1M3Y_Amount)
+CM_NN_pred_1M3Y_Amount <- CF_Builder(testing_month_years3$NumLabels,NN_pred_1M3Y_Amount)
+####
+CM_RF_pred_1S1Y_Drug <- CF_Builder(testing_Season_Year$Service.Int.Code,RF_pred_1S1Y_Drug)
+CM_NN_pred_1S1Y_Drug <- CF_Builder(testing_Season_Year$Service.Int.Code,NN_pred_1S1Y_Drug)
+CM_RF_pred_1S2Y_Drug <- CF_Builder(testing_Season_2Years$Service.Int.Code,RF_pred_1S2Y_Drug)
+CM_NN_pred_1S2Y_Drug <- CF_Builder(testing_Season_2Years$Service.Int.Code,NN_pred_1S2Y_Drug)
+CM_RF_pred_1S3Y_Drug <- CF_Builder(testing_Season_3Years$Service.Int.Code,RF_pred_1S3Y_Drug)
+CM_NN_pred_1S3Y_Drug <- CF_Builder(testing_Season_3Years$Service.Int.Code,NN_pred_1S3Y_Drug)
+CM_RF_pred_1S1Y_Amount <- CF_Builder(testing_Season_Year1$NumLabels,RF_pred_1S1Y_Amount)
+CM_NN_pred_1S1Y_Amount <- CF_Builder(testing_Season_Year1$NumLabels,NN_pred_1S1Y_Amount)
+CM_RF_pred_1S2Y_Amount <- CF_Builder(testing_Season_Years2$NumLabels,RF_pred_1S2Y_Amount)
+CM_NN_pred_1S2Y_Amount <- CF_Builder(testing_Season_Years2$NumLabels,NN_pred_1S2Y_Amount)
+CM_RF_pred_1S3Y_Amount <- CF_Builder(testing_Season_Years3$NumLabels,RF_pred_1S3Y_Amount)
+CM_NN_pred_1S3Y_Amount <- CF_Builder(testing_Season_Years3$NumLabels,NN_pred_1S3Y_Amount)
+### Accuracy
+Pred_Acc <- c(CM_RF_pred_1M1Y_Drug$overall[[1]],CM_NN_pred_1M1Y_Drug$overall[[1]],CM_RF_pred_1M2Y_Drug$overall[[1]],CM_NN_pred_1M2Y_Drug$overall[[1]],CM_RF_pred_1M3Y_Drug$overall[[1]],CM_NN_pred_1M3Y_Drug$overall[[1]],CM_RF_pred_1M1Y_Amount$overall[[1]],CM_NN_pred_1M1Y_Amount$overall[[1]],CM_RF_pred_1M2Y_Amount$overall[[1]],CM_NN_pred_1M2Y_Amount$overall[[1]],CM_RF_pred_1M3Y_Amount$overall[[1]],CM_NN_pred_1M3Y_Amount$overall[[1]],CM_RF_pred_1S1Y_Drug$overall[[1]],CM_NN_pred_1S1Y_Drug$overall[[1]],CM_RF_pred_1S2Y_Drug$overall[[1]],CM_NN_pred_1S2Y_Drug$overall[[1]],CM_RF_pred_1S3Y_Drug$overall[[1]],CM_NN_pred_1S3Y_Drug$overall[[1]],CM_RF_pred_1S1Y_Amount$overall[[1]],CM_NN_pred_1S1Y_Amount$overall[[1]],CM_RF_pred_1S2Y_Amount$overall[[1]],CM_NN_pred_1S2Y_Amount$overall[[1]],CM_RF_pred_1S3Y_Amount$overall[[1]],CM_NN_pred_1S3Y_Amount$overall[[1]])                                                                       
+Prediction_Accuracy <- matrix(Pred_Acc,nrow=2,ncol=12)
+colnames(Prediction_Accuracy) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Prediction_Accuracy) <- c("RF","NN") 
+### Precision
+Pred_Precision <- c(max(CM_RF_pred_1M1Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1M1Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1S3Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1S3Y_Drug$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Amount$byClass[,"Precision"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Amount$byClass[,"Precision"],na.rm = TRUE),NA,max(CM_NN_pred_1S3Y_Amount$byClass[,"Precision"],na.rm = TRUE))
+Prediction_Precision <- matrix(Pred_Precision,nrow=2,ncol=12)
+colnames(Prediction_Precision) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Prediction_Precision) <- c("RF","NN") 
+### Recall
+Pred_Recall <- c(max(CM_RF_pred_1M1Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1M1Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1S3Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1S3Y_Drug$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Amount$byClass[,"Recall"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Amount$byClass[,"Recall"],na.rm = TRUE),NA,max(CM_NN_pred_1S3Y_Amount$byClass[,"Recall"],na.rm = TRUE))
+Prediction_Recall <- matrix(Pred_Recall,nrow=2,ncol=12)
+colnames(Prediction_Recall) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Prediction_Recall) <- c("RF","NN") 
+### F1
+Pred_F1 <- c(max(CM_RF_pred_1M1Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1M1Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M1Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1M2Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M2Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1M3Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1M3Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1S3Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1S3Y_Drug$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1S1Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1S1Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_RF_pred_1S2Y_Amount$byClass[,"F1"],na.rm = TRUE),max(CM_NN_pred_1S2Y_Amount$byClass[,"F1"],na.rm = TRUE),NA,max(CM_NN_pred_1S3Y_Amount$byClass[,"F1"],na.rm = TRUE))
+Prediction_F1 <- matrix(Pred_F1,nrow=2,ncol=12)
+colnames(Prediction_F1) <- c("Drug1M1Y","Drug1M2Y","Drug1M3Y","Amount1M1Y","Amount1M2Y","Amount1M3Y","Drug1S1Y","Drug1S2Y","Drug1S3Y","Amount1S1Y","Amount1S2Y","Amount1S3Y")
+rownames(Prediction_F1) <- c("RF","NN") 
